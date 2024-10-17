@@ -36,6 +36,11 @@ library LibDiamond {
         uint256 facetAddressPosition; // position of facetAddress in facetAddresses array
     }
 
+    struct Stake {
+        uint256 amount;
+        uint256 startTime;
+    }
+
     struct DiamondStorage {
         // maps function selector to the facet address and
         // the position of the selector in the facetFunctionSelectors.selectors array
@@ -55,7 +60,8 @@ library LibDiamond {
         string _name;
         string _symbol;
         uint8 decimal;
-        uint256 staking;
+        mapping(address => Stake) stakes;
+        uint256 interestRatePerYear;
     }
 
     function diamondStorage() internal pure returns (DiamondStorage storage ds) {

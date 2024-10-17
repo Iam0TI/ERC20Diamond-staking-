@@ -293,4 +293,58 @@ contract ERC20Facet is IERC20Errors {
             }
         }
     }
+
+    // Stake tokens
+    function stakeTokens(uint256 _amount) external {
+        LibDiamond.DiamondStorage storage l = LibDiamond.diamondStorage();
+        //LibDiamond.Stake storage stakeData = l.stakes[msg.sender];
+        require(_amount > 0, "Cannot stake 0 tokens");
+        require(balanceOf(msg.sender) >= _amount, "Not enough tokens to stake");
+
+        _transfer(msg.sender, address(this), _amount);
+
+        if (l.stakes[msg.sender].amount > 0) {
+            uint256 interest = calculateReward(msg.sender);
+            l.stakes[msg.sender].amount += interest;
+        }
+
+        l.stakes[msg.sender].amount += _amount;
+        l.stakes[msg.sender].startTime = block.timestamp;
+    }
+
+    function unstakeTokens() external {
+        LibDiamond.DiamondStorage storage l = LibDiamond.diamondStorage();
+        LibDiamond.Stake storage stakeData = l.stakes[msg.sender];
+        require(stakeData.amount > 0, "No tokens staked");
+
+        uint256 interest = calculateReward(msg.sender);
+        uint256 total = stakeData.amount + interest;
+
+        _transfer(address(this), msg.sender, total);
+
+        stakeData.amount = 0;
+        stakeData.startTime = 0;
+    }
+
+    // View the current reward for the user
+    function viewReward() external view returns (uint256) {
+        return calculateReward(msg.sender);
+    }
+
+    function calculateReward(address _staker) internal view returns (uint256) {
+        LibDiamond.DiamondStorage storage l = LibDiamond.diamondStorage();
+        LibDiamond.Stake storage stakeData = l.stakes[msg.sender];
+        if (stakeData.amount == 0) {
+            return 0;
+        }
+
+        uint256 stakingDuration = block.timestamp - stakeData.startTime; // in seconds
+        uint256 reward = (stakeData.amount * l.interestRatePerYear * stakingDuration) / (365 days * 100);
+        return reward;
+    }
+
+    function stakedAmount() external view returns (uint256) {
+        LibDiamond.DiamondStorage storage l = LibDiamond.diamondStorage();
+        return l.stakes[msg.sender].amount;
+    }
 }

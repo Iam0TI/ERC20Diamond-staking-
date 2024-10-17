@@ -18,13 +18,15 @@ contract Diamond {
         address _diamondCutFacet,
         string memory _name,
         string memory _symbol,
-        uint8 decimals
+        uint8 decimals,
+        uint8 interestRatePerYear
     ) payable {
         LibDiamond.setContractOwner(_contractOwner);
         LibDiamond.DiamondStorage storage ds = LibDiamond.diamondStorage();
         ds._name = _name;
         ds._symbol = _symbol;
         ds.decimal = decimals;
+        ds.interestRatePerYear = interestRatePerYear;
 
         // Add the diamondCut external function from the diamondCutFacet
         IDiamondCut.FacetCut[] memory cut = new IDiamondCut.FacetCut[](1);

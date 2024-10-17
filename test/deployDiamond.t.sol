@@ -67,7 +67,7 @@ contract DiamondDeployer is DiamondUtils, IDiamondCut {
     function setUp() public {
         // deploy facets
         dCutFacet = new DiamondCutFacet();
-        diamond = new Diamond(address(this), address(dCutFacet), "Program Analysis", "PA", 18);
+        diamond = new Diamond(address(this), address(dCutFacet), "Program Analysis", "PA", 18, 4);
         dLoupe = new DiamondLoupeFacet();
         ownerF = new OwnershipFacet();
         erc20F = new ERC20Facet();
@@ -145,6 +145,58 @@ contract DiamondDeployer is DiamondUtils, IDiamondCut {
         vm.expectRevert("ERC20: transfer amount exceeds balance");
         vm.prank(owner); // Set msg.sender to owner
         erc20F.transfer(addr1, 2000 ether); // This should fail
+    }
+
+    function testStakeTokens() public {
+        vm.prank(owner);
+        erc20F.stakeTokens(50 ether);
+
+        uint256 stakedAmount = erc20F.stakedAmount();
+        assertEq(stakedAmount, 50 ether, "Staked amount should be 500 tokens");
+    }
+
+    function testViewReward() public {
+        vm.prank(owner);
+        erc20F.stakeTokens(500 ether);
+
+        // Fast forward time by 1 year (365 days)
+        vm.warp(block.timestamp + 365 days);
+
+        uint256 reward = erc20F.viewReward();
+
+        assertEq(reward, 25 ether, "Reward should be 25 tokens after 1 year");
+    }
+
+    function testUnstakeTokens() public {
+        vm.prank(owner);
+        erc20F.stakeTokens(500 ether);
+
+        vm.warp(block.timestamp + 365 days);
+        erc20F.unstakeTokens();
+
+        uint256 ownerBalance = erc20F.balanceOf(owner);
+
+        assertEq(ownerBalance, 525 ether, "Owner balance should be 525 tokens after unstaking");
+    }
+
+    function testStakeAndUnstakeMultipleTimes() public {
+        vm.prank(owner);
+        erc20F.stakeTokens(300 ether);
+
+        vm.warp(block.timestamp + 180 days);
+        erc20F.stakeTokens(200 ether);
+
+        vm.warp(block.timestamp + 180 days);
+
+        erc20F.unstakeTokens();
+
+        uint256 ownerBalance = erc20F.balanceOf(owner);
+
+        // Calculated expected reward:
+        // - First 300 tokens staked for 360 days
+        // - Second 200 tokens staked for 180 days
+        // Total reward is approximately 22.47 ether
+        assertEq(ownerBalance, 522.47 ether, "Owner balance should reflect the correct staking rewards");
     }
 
     function diamondCut(FacetCut[] calldata _diamondCut, address _init, bytes calldata _calldata) external override {}
